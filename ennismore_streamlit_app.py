@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-from datetime import datetime, date, timedelta
+from datetime import date, timedelta
 
 st.set_page_config(page_title="Ennismore Deal Model", layout="wide")
 
@@ -12,15 +12,15 @@ st.image(LOGO_URL, width=200)
 
 # ---------- Helpers ----------
 def xnpv(rate, cashflows):
-    '''Return the NPV of a series of cashflows at irregular intervals.
-    cashflows: list of (date, amount) tuples'''
+    """Return the NPV of a series of cashflows at irregular intervals.
+    cashflows: list of (date, amount) tuples"""
     if rate <= -1.0:
         return np.inf
     t0 = cashflows[0][0]
     return sum(cf / ((1 + rate) ** ((t - t0).days / 365.0)) for t, cf in cashflows)
 
-def xirr(cashflows, guess=0.2):
-    '''Compute the XIRR for irregular cashflows using a bisection search.'''
+def xirr(cashflows):
+    """Compute the XIRR for irregular cashflows via bisection (robust)."""
     cfs = sorted(cashflows, key=lambda x: x[0])
     low, high = -0.9999, 10.0
     for _ in range(200):
@@ -33,7 +33,7 @@ def xirr(cashflows, guess=0.2):
             low = mid
         else:
             high = mid
-        if abs(high - low) < 1e-7:
+        if abs(high - low) < 1e-9:
             break
     return (low + high) / 2.0
 
@@ -45,12 +45,11 @@ def fmt_money(x, curr="€"):
 
 # ---------- Default Inputs (prefilled from approved docs) ----------
 DEFAULTS = {
-    "stake_pct": 0.136,
-    "purchase_price": 425_000_000,
-    "entry_date": date(2025, 8, 31),
-    "exit_date": date(2027, 12, 31),
-    "exit_market_cap_mid": 7_250_000_000,
-    "exit_net_debt": 0,
+    "stake_pct": 0.136,                  # 13.6%
+    "purchase_price": 425_000_000,       # €425m
+    "entry_date": date(2025, 8, 31),     # capital call
+    "exit_date": date(2027, 12, 31),     # base IPO date
+    "exit_market_cap_mid": 7_250_000_000,# €7.25B midpoint
     "dividends": 0,
     "fwd_multiple": 18.0,
     "fwd_ebitda_2024": 350_000_000,
@@ -75,79 +74,72 @@ st.sidebar.header("Assumptions")
 stake_pct = st.sidebar.number_input("Stake Percentage", min_value=0.0, max_value=1.0, value=DEFAULTS["stake_pct"], step=0.001, format="%.3f")
 purchase_price = st.sidebar.number_input("Purchase Price (€)", min_value=0.0, value=float(DEFAULTS["purchase_price"]), step=1_000_000.0, format="%.0f")
 entry_date = st.sidebar.date_input("Entry Date", value=DEFAULTS["entry_date"])
-exit_date = st.sidebar.date_input("Exit / IPO Date", value=DEFAULTS["exit_date"])
-exit_market_cap_mid = st.sidebar.number_input("Exit Market Cap (Midpoint, €)", min_value=0.0, value=float(DEFAULTS["exit_market_cap_mid"]), step=50_000_000.0, format="%.0f")
-dividends = st.sidebar.number_input("Dividends/Distributions During Hold (€)", min_value=0.0, value=float(DEFAULTS["dividends"]), step=1_000_000.0, format="%.0f")
+exit_date = st.sidebar.date_input("Exit / IPO Date (Base)", value=DEFAULTS["exit_date"])
+exit_market_cap_mid = st.sidebar.number_input("Exit Market Cap (Base Midpoint, €)", min_value=0.0, value=float(DEFAULTS["exit_market_cap_mid"]), step=50_000_000.0, format="%.0f")
+dividends = st.sidebar.number_input("Dividends During Hold (€)", min_value=0.0, value=float(DEFAULTS["dividends"]), step=1_000_000.0, format="%.0f")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Multiple Context")
+st.sidebar.subheader("Multiple Context (optional)")
 fwd_multiple = st.sidebar.number_input("Forward EV/EBITDA Multiple", min_value=0.0, value=DEFAULTS["fwd_multiple"], step=0.5, format="%.1f")
-fwd_ebitda_2024 = st.sidebar.number_input("2024E EBITDA (for EV context, €)", min_value=0.0, value=float(DEFAULTS["fwd_ebitda_2024"]), step=10_000_000.0, format="%.0f")
+fwd_ebitda_2024 = st.sidebar.number_input("2024E EBITDA (EV context, €)", min_value=0.0, value=float(DEFAULTS["fwd_ebitda_2024"]), step=10_000_000.0, format="%.0f")
 net_debt_current = st.sidebar.number_input("Current Net Debt (EV → Equity, €)", min_value=0.0, value=float(DEFAULTS["net_debt_current"]), step=50_000_000.0, format="%.0f")
 
 # ---------- Main Layout ----------
-st.title("Ennismore Model")
-st.caption("Prefilled with financials covered in the IM (Feb/Mar 2025). Adjust inputs in the sidebar to explore scenarios.")
+st.title("Ennismore Deal Model — IRR / MOIC Explorer")
+st.caption("Prefilled with figures discussed in the IM (Feb/Mar 2025). Adjust inputs in the sidebar to explore scenarios.")
 
-col1, col2, col3 = st.columns(3)
-with col1:
+# Quick KPIs
+c1, c2, c3 = st.columns(3)
+with c1:
     st.metric("Stake", f"{stake_pct*100:.1f}%")
-with col2:
+with c2:
     st.metric("Purchase Price", fmt_money(purchase_price))
-with col3:
-    st.metric("Exit Market Cap (Mid)", fmt_money(exit_market_cap_mid))
+with c3:
+    st.metric("Exit Market Cap (Base Mid)", fmt_money(exit_market_cap_mid))
 
 # EV / Equity context
 ev_context = fwd_multiple * fwd_ebitda_2024
 equity_context = ev_context - net_debt_current
-st.markdown("### Valuation Context")
-c1, c2, c3 = st.columns(3)
-with c1:
+st.markdown("### Valuation Context (Optional)")
+v1, v2, v3 = st.columns(3)
+with v1:
     st.metric("EV (Forward)", fmt_money(ev_context))
-with c2:
+with v2:
     st.metric("Net Debt (Current)", fmt_money(net_debt_current))
-with c3:
+with v3:
     st.metric("Equity Value (Forward)", fmt_money(equity_context))
 
 # EBITDA table (editable)
 st.markdown("### EBITDA Path (Editable)")
 ebitda_edit = st.data_editor(EBITDA_TABLE, num_rows="dynamic", key="ebitda_table")
 
-# Cash flow schedule
-st.markdown("### Cash Flows")
+# Cash flow schedule (base)
+st.markdown("### Cash Flows (Base Case)")
 exit_proceeds = exit_market_cap_mid * stake_pct
 if dividends > 0:
     interim_date = date(entry_date.year + 1, entry_date.month, min(entry_date.day, 28))
-    cashflows = [
-        (entry_date, -purchase_price),
-        (interim_date, dividends),
-        (exit_date, exit_proceeds),
-    ]
+    cashflows = [(entry_date, -purchase_price), (interim_date, dividends), (exit_date, exit_proceeds)]
 else:
-    cashflows = [
-        (entry_date, -purchase_price),
-        (exit_date, exit_proceeds),
-    ]
+    cashflows = [(entry_date, -purchase_price), (exit_date, exit_proceeds)]
 
 cf_df = pd.DataFrame({
     "Date": [d.strftime("%Y-%m-%d") for d, _ in cashflows],
     "Cash Flow (€)": [cf for _, cf in cashflows],
     "Note": ["Entry", "Dividend" if dividends > 0 else "Exit", "Exit"] if dividends > 0 else ["Entry", "Exit"],
 })
-
 st.dataframe(cf_df, use_container_width=True)
 
-# MOIC & IRR
+# MOIC & IRR (base)
 moic = exit_proceeds / purchase_price if purchase_price > 0 else np.nan
-irr = xirr(cashflows) if len(cashflows) >= 2 else np.nan
+irr_base = xirr(cashflows) if len(cashflows) >= 2 else np.nan
 
-colm1, colm2, colm3 = st.columns(3)
-with colm1:
+k1, k2, k3 = st.columns(3)
+with k1:
     st.metric("Exit Proceeds (Equity)", fmt_money(exit_proceeds))
-with colm2:
-    st.metric("MOIC", f"{moic:.2f}x")
-with colm3:
-    st.metric("IRR (XIRR)", f"{irr*100:.1f}%")
+with k2:
+    st.metric("MOIC (Base)", f"{moic:.2f}x")
+with k3:
+    st.metric("IRR (Base, XIRR)", f"{irr_base*100:.1f}%")
 
 # Sensitivities
 st.markdown("### Sensitivities")
@@ -160,7 +152,6 @@ with s1:
     st.write(f"**Proceeds:** {fmt_money(proceeds_sens)}")
     st.write(f"**MOIC:** {moic_sens:.2f}x")
     st.write(f"**IRR:** {irr_sens*100:.1f}%")
-
 with s2:
     hold_years = st.slider("Hold Period (years)", min_value=1.0, max_value=5.0, value=((exit_date - entry_date).days/365.0), step=0.25)
     adj_exit_date = entry_date + timedelta(days=int(hold_years*365))
@@ -168,19 +159,80 @@ with s2:
     st.write(f"**Adj. Exit Date:** {adj_exit_date}")
     st.write(f"**IRR (hold adj.):** {irr_hold*100:.1f}%")
 
-# Downloadable exports
+# ---------- Scenario Analysis ----------
+st.markdown("## Scenario Analysis (IRR Paths & Probability-Weighted IRR)")
+st.caption("Edit exit year, market cap (in € billions), and probability. IRR is computed per scenario; a probability-weighted IRR is shown below.")
+
+default_scenarios = pd.DataFrame({
+    "Scenario": ["Base", "Bull", "Bear", "Delayed"],
+    "Exit_Year": [2027, 2027, 2027, 2029],
+    "Exit_Market_Cap_Bn": [7.25, 8.50, 6.00, 7.25],
+    "Probability": [0.50, 0.20, 0.20, 0.10],
+})
+
+scen_edit = st.data_editor(
+    default_scenarios,
+    num_rows="dynamic",
+    use_container_width=True,
+    key="scenario_table"
+)
+
+# Compute IRR per scenario
+irr_list = []
+for _, row in scen_edit.iterrows():
+    try:
+        scen_year = int(row["Exit_Year"])
+        scen_cap_eur = float(row["Exit_Market_Cap_Bn"]) * 1_000_000_000
+        scen_prob = max(0.0, float(row["Probability"]))
+    except Exception:
+        irr_list.append(np.nan)
+        continue
+
+    scen_exit_date = date(scen_year, 12, 31)
+    scen_proceeds = scen_cap_eur * stake_pct
+    scen_cfs = [(entry_date, -purchase_price), (scen_exit_date, scen_proceeds)]
+    try:
+        irr_val = xirr(scen_cfs)
+    except Exception:
+        irr_val = np.nan
+    irr_list.append(irr_val)
+
+scen_edit["IRR_%"] = [None if np.isnan(x) else round(x*100, 1) for x in irr_list]
+
+# Probability-weighted IRR (normalize probs if they don't sum to 1)
+prob_sum = scen_edit["Probability"].sum() if "Probability" in scen_edit else 0.0
+weighted_irr = np.nan
+if prob_sum > 0 and len(irr_list) == len(scen_edit):
+    weights = [p / prob_sum for p in scen_edit["Probability"]]
+    weighted_irr = 0.0
+    for w, irr_v in zip(weights, irr_list):
+        if np.isnan(irr_v):
+            continue
+        weighted_irr += w * irr_v
+
+st.dataframe(scen_edit, use_container_width=True)
+st.markdown("---")
+if not np.isnan(weighted_irr):
+    st.subheader(f"Probability-Weighted IRR: {weighted_irr*100:.1f}%")
+else:
+    st.subheader("Probability-Weighted IRR: N/A")
+
+# ---------- Exports ----------
 st.markdown("### Export")
 inputs_df = pd.DataFrame({
-    "Item": ["Stake Percentage", "Purchase Price (€)", "Entry Date", "Exit Date", "Exit Market Cap (Mid €)", "Dividends (€)", "Forward EV/EBITDA", "2024E EBITDA (€)", "Current Net Debt (€)"],
+    "Item": ["Stake Percentage", "Purchase Price (€)", "Entry Date", "Exit Date (Base)", "Exit Market Cap (Base Mid €)", "Dividends (€)", "Forward EV/EBITDA", "2024E EBITDA (€)", "Current Net Debt (€)"],
     "Value": [stake_pct, purchase_price, entry_date, exit_date, exit_market_cap_mid, dividends, fwd_multiple, fwd_ebitda_2024, net_debt_current],
 })
 export = {
     "inputs": inputs_df.to_csv(index=False).encode("utf-8"),
     "ebitda": ebitda_edit.to_csv(index=False).encode("utf-8"),
     "cashflows": cf_df.to_csv(index=False).encode("utf-8"),
+    "scenarios": scen_edit.to_csv(index=False).encode("utf-8"),
 }
-st.download_button("Download Inputs CSV", data=export["inputs"], file_name="ennismore_inputs.csv")
-st.download_button("Download EBITDA CSV", data=export["ebitda"], file_name="ennismore_ebitda.csv")
-st.download_button("Download Cash Flows CSV", data=export["cashflows"], file_name="ennismore_cash_flows.csv")
+cxa, cxb, cxc, cxd = st.columns(4)
+with cxa: st.download_button("Download Inputs CSV", data=export["inputs"], file_name="ennismore_inputs.csv")
+with cxb: st.download_button("Download EBITDA CSV", data=export["ebitda"], file_name="ennismore_ebitda.csv")
+with cxc: st.download_button("Download Cash Flows CSV", data=export["cashflows"], file_name="ennismore_cash_flows.csv")
+with cxd: st.download_button("Download Scenarios CSV", data=export["scenarios"], file_name="ennismore_scenarios.csv")
 
-st.caption("Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. Exit cap midpoint €7.25B.")
+st.caption("Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. Exit cap midpoint €7.25B. Adjust any values to match your underwriting.")
