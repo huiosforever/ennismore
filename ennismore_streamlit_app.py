@@ -1,10 +1,13 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, date, timedelta
 
 st.set_page_config(page_title="Ennismore Deal Model", layout="wide")
+# ---------- Logo ----------
+LOGO_URL = "https://cdn.prod.website-files.com/66ec88f6d7b63833eb28d6a7/66ec8de11054852c315965b0_BAY%20STREET%20HOSPITALITY-03-p-800.png"  # <-- Replace with Bay Street logo URL
+st.sidebar.image(LOGO_URL, width=150)
+st.image(LOGO_URL, width=200)
 
 # ---------- Helpers ----------
 def xnpv(rate, cashflows):
