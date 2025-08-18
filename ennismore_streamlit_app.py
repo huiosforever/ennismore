@@ -3,7 +3,7 @@ import pandas as pd
 import numpy as np
 from datetime import date, timedelta
 
-st.set_page_config(page_title="Ennismore Deal Model", layout="wide")
+st.set_page_config(page_title="Ennismore Model", layout="wide")
 
 # ---------- Logo ----------
 LOGO_URL = "https://cdn.prod.website-files.com/66ec88f6d7b63833eb28d6a7/66ec8de11054852c315965b0_BAY%20STREET%20HOSPITALITY-03-p-800.png"
@@ -79,14 +79,14 @@ exit_market_cap_mid = st.sidebar.number_input("Exit Market Cap (Base Midpoint, �
 dividends = st.sidebar.number_input("Dividends During Hold (€)", min_value=0.0, value=float(DEFAULTS["dividends"]), step=1_000_000.0, format="%.0f")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Multiple Context (optional)")
+st.sidebar.subheader("Multiple Context")
 fwd_multiple = st.sidebar.number_input("Forward EV/EBITDA Multiple", min_value=0.0, value=DEFAULTS["fwd_multiple"], step=0.5, format="%.1f")
 fwd_ebitda_2024 = st.sidebar.number_input("2024E EBITDA (EV context, €)", min_value=0.0, value=float(DEFAULTS["fwd_ebitda_2024"]), step=10_000_000.0, format="%.0f")
 net_debt_current = st.sidebar.number_input("Current Net Debt (EV → Equity, €)", min_value=0.0, value=float(DEFAULTS["net_debt_current"]), step=50_000_000.0, format="%.0f")
 
 # ---------- Main Layout ----------
-st.title("Ennismore Deal Model — IRR / MOIC Explorer")
-st.caption("Prefilled with figures discussed in the IM (Feb/Mar 2025). Adjust inputs in the sidebar to explore scenarios.")
+st.title("Ennismore Model")
+st.caption("Prefilled with financials discussed in the IM (Feb/Mar 2025). Adjust inputs in the sidebar to explore scenarios.")
 
 # Quick KPIs
 c1, c2, c3 = st.columns(3)
@@ -100,7 +100,7 @@ with c3:
 # EV / Equity context
 ev_context = fwd_multiple * fwd_ebitda_2024
 equity_context = ev_context - net_debt_current
-st.markdown("### Valuation Context (Optional)")
+st.markdown("### Valuation Context")
 v1, v2, v3 = st.columns(3)
 with v1:
     st.metric("EV (Forward)", fmt_money(ev_context))
@@ -235,4 +235,4 @@ with cxb: st.download_button("Download EBITDA CSV", data=export["ebitda"], file_
 with cxc: st.download_button("Download Cash Flows CSV", data=export["cashflows"], file_name="ennismore_cash_flows.csv")
 with cxd: st.download_button("Download Scenarios CSV", data=export["scenarios"], file_name="ennismore_scenarios.csv")
 
-st.caption("Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. Exit cap midpoint €7.25B. Adjust any values to match your underwriting.")
+st.caption("Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. Exit cap midpoint €7.25B.")
