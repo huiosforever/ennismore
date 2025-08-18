@@ -80,7 +80,7 @@ exit_market_cap_mid = st.sidebar.number_input("Exit Market Cap (Midpoint, €)",
 dividends = st.sidebar.number_input("Dividends/Distributions During Hold (€)", min_value=0.0, value=float(DEFAULTS["dividends"]), step=1_000_000.0, format="%.0f")
 
 st.sidebar.markdown("---")
-st.sidebar.subheader("Multiple Context (optional)")
+st.sidebar.subheader("Multiple Context")
 fwd_multiple = st.sidebar.number_input("Forward EV/EBITDA Multiple", min_value=0.0, value=DEFAULTS["fwd_multiple"], step=0.5, format="%.1f")
 fwd_ebitda_2024 = st.sidebar.number_input("2024E EBITDA (for EV context, €)", min_value=0.0, value=float(DEFAULTS["fwd_ebitda_2024"]), step=10_000_000.0, format="%.0f")
 net_debt_current = st.sidebar.number_input("Current Net Debt (EV → Equity, €)", min_value=0.0, value=float(DEFAULTS["net_debt_current"]), step=50_000_000.0, format="%.0f")
@@ -100,7 +100,7 @@ with col3:
 # EV / Equity context
 ev_context = fwd_multiple * fwd_ebitda_2024
 equity_context = ev_context - net_debt_current
-st.markdown("### Valuation Context (Optional)")
+st.markdown("### Valuation Context")
 c1, c2, c3 = st.columns(3)
 with c1:
     st.metric("EV (Forward)", fmt_money(ev_context))
