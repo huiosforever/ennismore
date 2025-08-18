@@ -1,4 +1,4 @@
-import streamlit as st
+eimport streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime, date, timedelta
@@ -183,4 +183,4 @@ st.download_button("Download Inputs CSV", data=export["inputs"], file_name="enni
 st.download_button("Download EBITDA CSV", data=export["ebitda"], file_name="ennismore_ebitda.csv")
 st.download_button("Download Cash Flows CSV", data=export["cashflows"], file_name="ennismore_cash_flows.csv")
 
-st.caption("Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. Exit cap midpoint €7.25B. Adjust any values to match your underwriting.")
+st.caption("Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. Exit cap midpoint €7.25B.")
