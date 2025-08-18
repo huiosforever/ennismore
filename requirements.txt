@@ -3,7 +3,6 @@ streamlit==1.36.0
 pandas==2.2.2
 numpy==1.26.4
 
-# Optional but recommended
 openpyxl==3.1.5        # Excel export / import
 matplotlib==3.9.0      # Charting
 plotly==5.22.0         # Interactive charts in Streamlit
