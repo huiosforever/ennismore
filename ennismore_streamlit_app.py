@@ -86,8 +86,8 @@ fwd_ebitda_2024 = st.sidebar.number_input("2024E EBITDA (for EV context, €)", 
 net_debt_current = st.sidebar.number_input("Current Net Debt (EV → Equity, €)", min_value=0.0, value=float(DEFAULTS["net_debt_current"]), step=50_000_000.0, format="%.0f")
 
 # ---------- Main Layout ----------
-st.title("Ennismore Deal Model — IRR / MOIC Explorer")
-st.caption("Prefilled with figures discussed in the IM (Feb/Mar 2025). Adjust inputs in the sidebar to explore scenarios.")
+st.title("Ennismore Model")
+st.caption("Prefilled with financials covered in the IM (Feb/Mar 2025). Adjust inputs in the sidebar to explore scenarios.")
 
 col1, col2, col3 = st.columns(3)
 with col1:
