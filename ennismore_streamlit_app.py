@@ -48,7 +48,7 @@ DEFAULTS = {
     "stake_pct": 0.138,                  # 13.8%
     "purchase_price": 405_000_000,       # €405m
     "entry_date": date(2025, 8, 31),     # capital call
-    "exit_date": date(2029, 12, 31),     # conservative ~4.3y hold to align with 17–19% IRR
+    "exit_date": date(2029, 12, 31),     # ~4.3y hold to align with 17–19% IRR
     "exit_market_cap_mid": 7_250_000_000,# headline market cap midpoint
     "dividends": 0,
     "fwd_multiple": 18.0,
@@ -98,7 +98,7 @@ current_ev = DEFAULTS["current_ev"]
 implied_ev_stake_value   = stake_pct * current_ev
 implied_equity_value_ref = max(0.0, current_ev - net_debt_current) * stake_pct
 
-disc_vs_ev     = (1 - (purchase_price / implied_ev_stake_value)) if implied_ev_stake_value   > 0 else np.nan
+disc_vs_ev     = (1 - (purchase_price / implied_ev_stake_value)) if implied_ev_stake_value > 0 else np.nan
 disc_vs_equity = (1 - (purchase_price / implied_equity_value_ref)) if implied_equity_value_ref > 0 else np.nan
 
 c1, c2, c3 = st.columns(3)
@@ -142,8 +142,8 @@ st.caption("Turning this ON generally aligns IRR with the IM’s equity-based me
 st.markdown("### EBITDA Path (Editable)")
 ebitda_edit = st.data_editor(EBITDA_TABLE, num_rows="dynamic", key="ebitda_table")
 
-# Cash flow schedule (base)
-st.markdown("### Cash Flows (Base Case)")
+# ---------- Cash flow schedule (base) ----------
+# Compute proceeds and cashflows first
 if use_equity_basis:
     base_equity_value = max(0.0, exit_market_cap_mid - net_debt_current)
     exit_proceeds = base_equity_value * stake_pct
@@ -161,6 +161,9 @@ cf_df = pd.DataFrame({
     "Cash Flow (€)": [cf for _, cf in cashflows],
     "Note": ["Entry", "Dividend" if dividends > 0 else "Exit", "Exit"] if dividends > 0 else ["Entry", "Exit"],
 })
+
+st.markdown("## Base Case Cash Flow Table")
+st.caption("Shows the modeled entry and exit cash flows for the base case only.")
 st.dataframe(cf_df, use_container_width=True)
 
 # MOIC & IRR (base)
@@ -174,12 +177,12 @@ with k2:
     st.metric("MOIC (Base)", f"{moic:.2f}x")
 with k3:
     st.metric("IRR (Base, XIRR)", f"{irr_base*100:.1f}%")
-    st.caption(
-        "Displayed IRR conservatively assumes a ~4‑year hold to align with the IM; "
-        "Bay Street anticipates an actual hold period of **9–18 months** subject to market conditions."
-    )
+st.caption(
+    "Displayed IRR conservatively assumes a ~4‑year hold to align with the IM; "
+    "Bay Street anticipates an actual hold period of **9–18 months** subject to market conditions."
+)
 
-# Sensitivities
+# ---------- Sensitivities ----------
 st.markdown("### Sensitivities")
 s1, s2 = st.columns(2)
 with s1:
@@ -194,15 +197,17 @@ with s1:
     st.write(f"**MOIC:** {moic_sens:.2f}x")
     st.write(f"**IRR:** {irr_sens*100:.1f}%")
 with s2:
-    hold_years = st.slider("Hold Period (years)", min_value=1.0, max_value=5.0, value=((exit_date - entry_date).days/365.0), step=0.25)
+    hold_years = st.slider("Hold Period (years)", min_value=1.0, max_value=5.0,
+                           value=((exit_date - entry_date).days/365.0), step=0.25)
     adj_exit_date = entry_date + timedelta(days=int(hold_years*365))
     irr_hold = xirr([(entry_date, -purchase_price), (adj_exit_date, exit_proceeds)])
     st.write(f"**Adj. Exit Date:** {adj_exit_date}")
     st.write(f"**IRR (hold adj.):** {irr_hold*100:.1f}%")
 
 # ---------- Scenario Analysis ----------
-st.markdown("## Scenario Analysis (IRR Paths & Probability‑Weighted IRR — assumes full exit, no phased sell‑down)")
-st.caption("Edit exit year, market cap (in € billions), and probability. Includes delayed exits and a conservative €6.0B case.")
+st.markdown("---")
+st.markdown("## Scenario Analysis Table")
+st.caption("Editable exit scenarios with probabilities. Used to compute a probability-weighted IRR.")
 
 default_scenarios = pd.DataFrame({
     "Scenario": [
@@ -275,13 +280,16 @@ else:
 # ---------- Exports ----------
 st.markdown("### Export")
 inputs_df = pd.DataFrame({
-    "Item": ["Stake Percentage", "Purchase Price (€)", "Entry Date", "Exit Date (Base)", "Exit Market Cap (Base Mid €)", "Dividends (€)", "Forward EV/EBITDA", "2024E EBITDA (€)", "Current Net Debt (€)"],
-    "Value": [stake_pct, purchase_price, entry_date, exit_date, exit_market_cap_mid, dividends, fwd_multiple, fwd_ebitda_2024, net_debt_current],
+    "Item": ["Stake Percentage", "Purchase Price (€)", "Entry Date", "Exit Date (Base)",
+             "Exit Market Cap (Base Mid €)", "Dividends (€)", "Forward EV/EBITDA",
+             "2024E EBITDA (€)", "Current Net Debt (€)"],
+    "Value": [stake_pct, purchase_price, entry_date, exit_date, exit_market_cap_mid,
+              dividends, fwd_multiple, fwd_ebitda_2024, net_debt_current],
 })
 export = {
     "inputs": inputs_df.to_csv(index=False).encode("utf-8"),
     "ebitda": EBITDA_TABLE.to_csv(index=False).encode("utf-8"),
-    "cashflows": pd.DataFrame(cf_df).to_csv(index=False).encode("utf-8"),
+    "cashflows": cf_df.to_csv(index=False).encode("utf-8"),
     "scenarios": scen_edit.to_csv(index=False).encode("utf-8"),
 }
 cxa, cxb, cxc, cxd = st.columns(4)
