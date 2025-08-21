@@ -43,18 +43,17 @@ def fmt_money(x, curr="€"):
     except Exception:
         return ""
 
-# ---------- Default Inputs (prefilled from approved docs) ----------
+# ---------- Default Inputs (aligned with IM assumptions) ----------
 DEFAULTS = {
     "stake_pct": 0.138,                  # 13.8%
     "purchase_price": 405_000_000,       # €405m
     "entry_date": date(2025, 8, 31),     # capital call
-    "exit_date": date(2027, 12, 31),     # base IPO date
-    "exit_market_cap_mid": 7_250_000_000,# €7.25B midpoint (headline equity value)
+    "exit_date": date(2029, 12, 31),     # longer hold to match IM IRR range
+    "exit_market_cap_mid": 7_250_000_000,# ~€7.25B midpoint
     "dividends": 0,
     "fwd_multiple": 18.0,
     "fwd_ebitda_2024": 350_000_000,
-    "net_debt_current": 700_000_000,     # ~€0.7B for EV -> equity bridge context
-    "current_ev": 6_300_000_000,         # €6.3B EV (for discount calc)
+    "net_debt_current": 700_000_000,
 }
 
 EBITDA_TABLE = pd.DataFrame({
