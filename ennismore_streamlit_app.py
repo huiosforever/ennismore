@@ -160,14 +160,14 @@ with s2:
     st.write(f"**IRR (hold adj.):** {irr_hold*100:.1f}%")
 
 # ---------- Scenario Analysis ----------
-st.markdown("## Scenario Analysis (IRR Paths & Probability-Weighted IRR)")
+st.markdown("## Scenario Analysis (IRR Paths & Probability-Weighted IRR assuming full exit)")
 st.caption("Edit exit year, market cap (in € billions), and probability. IRR is computed per scenario; a probability-weighted IRR is shown below.")
 
 default_scenarios = pd.DataFrame({
-    "Scenario": ["Base", "Bull", "Bear", "Delayed"],
-    "Exit_Year": [2027, 2027, 2027, 2029],
-    "Exit_Market_Cap_Bn": [7.25, 8.50, 6.00, 7.25],
-    "Probability": [0.50, 0.20, 0.20, 0.10],
+    "Scenario": ["Base", "Bull", "Bear", "Delayed 1 yr (Base)", "Delayed 1 yr (Bull)", "Delayed 1 yr (Bear)", "Delayed 2 yrs (Base)", "Delayed 2 yrs (Bull)", "Delayed 2 yrs (Bear)"],
+    "Exit_Year": [2027, 2027, 2027, 2008, 2008, 2008, 2009, 2009, 2029],
+    "Exit_Market_Cap_Bn": [7.25, 8.50, 6.00, 7.25, 8.50, 6.00, 7.25, 8.50, 6.00],
+    "Probability": [0.45, 0.10, 0.10, 0.10, 0.05, 0.05, 0.05, 0.05, 0.05],
 })
 
 scen_edit = st.data_editor(
