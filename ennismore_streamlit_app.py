@@ -43,17 +43,18 @@ def fmt_money(x, curr="€"):
     except Exception:
         return ""
 
-# ---------- Default Inputs (aligned with IM assumptions) ----------
+# ---------- Default Inputs (aligned with IM-style IRR) ----------
 DEFAULTS = {
     "stake_pct": 0.138,                  # 13.8%
     "purchase_price": 405_000_000,       # €405m
     "entry_date": date(2025, 8, 31),     # capital call
-    "exit_date": date(2029, 12, 31),     # longer hold to match IM IRR range
-    "exit_market_cap_mid": 7_250_000_000,# ~€7.25B midpoint
+    "exit_date": date(2029, 12, 31),     # conservative ~4.3y hold to align with 17–19% IRR
+    "exit_market_cap_mid": 7_250_000_000,# headline market cap midpoint
     "dividends": 0,
     "fwd_multiple": 18.0,
     "fwd_ebitda_2024": 350_000_000,
-    "net_debt_current": 700_000_000,
+    "net_debt_current": 700_000_000,     # for EV→Equity bridge
+    "current_ev": 6_300_000_000,         # reference EV for discount display
 }
 
 EBITDA_TABLE = pd.DataFrame({
@@ -86,37 +87,38 @@ net_debt_current = st.sidebar.number_input("Current Net Debt (EV → Equity, €
 
 # ---------- Main Layout ----------
 st.title("Ennismore Model")
-st.caption("Prefilled with financials discussed in the IM (Feb/Mar 2025). This model assumes a **full exit in a single tranche** (no phased sell-down). Use equity vs. market cap toggles to align with IM-style IRR assumptions.")
-
-# ---- NEW: Discount vs Current Valuation (EV €6.3B and Equity €(EV - ND)) ----
-current_ev = DEFAULTS["current_ev"]
-current_equity_value = current_ev - net_debt_current
-
-implied_value_ev = current_ev * stake_pct
-implied_value_equity = current_equity_value * stake_pct
-
-discount_vs_ev = 1.0 - (purchase_price / implied_value_ev) if implied_value_ev > 0 else np.nan
-discount_vs_equity = 1.0 - (purchase_price / implied_value_equity) if implied_value_equity > 0 else np.nan
-
-d1, d2, d3 = st.columns(3)
-with d1:
-    st.metric("Stake", f"{stake_pct*100:.1f}%")
-with d2:
-    st.metric("Purchase Price", fmt_money(purchase_price))
-with d3:
-    st.metric("Current EV (Ref)", fmt_money(current_ev))
-
-dd1, dd2 = st.columns(2)
-with dd1:
-    st.metric("Discount vs EV (€6.3B)", f"{discount_vs_ev*100:.1f}%" if not np.isnan(discount_vs_ev) else "N/A", help=f"Implied stake value @ EV: {fmt_money(implied_value_ev)}")
-with dd2:
-    st.metric("Discount vs Equity (EV−Net Debt)", f"{discount_vs_equity*100:.1f}%" if not np.isnan(discount_vs_equity) else "N/A", help=f"Implied stake value @ Equity: {fmt_money(implied_value_equity)}")
-
-st.markdown(
-    "_Note: EV-based discount uses €6.3B EV. Equity-based discount uses EV − current net debt (default €0.7B). IRR in the IM is typically anchored off equity value._"
+st.caption(
+    "Prefilled with financials discussed in the IM (Feb/Mar 2025). "
+    "This model assumes a full exit in a single tranche (no phased sell-down). "
+    "Use equity vs. market cap toggles to align with IM‑style IRR assumptions."
 )
 
-# EV / Equity context
+# --- Top KPIs grouped: Stake | Purchase & Discounts | Current EV
+current_ev = DEFAULTS["current_ev"]
+implied_ev_stake_value   = stake_pct * current_ev
+implied_equity_value_ref = max(0.0, current_ev - net_debt_current) * stake_pct
+
+disc_vs_ev     = (1 - (purchase_price / implied_ev_stake_value)) if implied_ev_stake_value   > 0 else np.nan
+disc_vs_equity = (1 - (purchase_price / implied_equity_value_ref)) if implied_equity_value_ref > 0 else np.nan
+
+c1, c2, c3 = st.columns(3)
+with c1:
+    st.metric("Stake", f"{stake_pct*100:.1f}%")
+
+with c2:
+    st.metric("Purchase Price", fmt_money(purchase_price))
+    st.metric("Discount vs EV (€6.3B)", f"{disc_vs_ev*100:.1f}%" if not np.isnan(disc_vs_ev) else "N/A")
+    st.metric("Discount vs Equity (EV – Net Debt)", f"{disc_vs_equity*100:.1f}%" if not np.isnan(disc_vs_equity) else "N/A")
+
+with c3:
+    st.metric("Current EV (Ref)", fmt_money(current_ev))
+
+st.caption(
+    "Note: EV-based discount uses €6.3B EV. Equity-based discount uses EV − current net debt (default €0.7B). "
+    "IRR in the IM is typically anchored off equity value."
+)
+
+# EV / Equity context (forward)
 ev_context = fwd_multiple * fwd_ebitda_2024
 equity_context = ev_context - net_debt_current
 st.markdown("### Valuation Context")
@@ -128,10 +130,13 @@ with v2:
 with v3:
     st.metric("Equity Value (Forward)", fmt_money(equity_context))
 
-# Choose basis for exit proceeds (to align with IM)
+# Choose basis for exit proceeds (default ON to align with IM)
 st.markdown("**Exit Proceeds Basis**")
-use_equity_basis = st.toggle("Compute exit proceeds from Equity Value (EV − Net Debt) instead of headline Market Cap", value=True)
-st.caption("Turning this ON generally aligns IRR with the IM’s equity-based methodology. Turning it OFF uses headline market cap.")
+use_equity_basis = st.toggle(
+    "Compute exit proceeds from Equity Value (EV − Net Debt) instead of headline Market Cap",
+    value=True
+)
+st.caption("Turning this ON generally aligns IRR with the IM’s equity-based methodology.")
 
 # EBITDA table (editable)
 st.markdown("### EBITDA Path (Editable)")
@@ -140,8 +145,8 @@ ebitda_edit = st.data_editor(EBITDA_TABLE, num_rows="dynamic", key="ebitda_table
 # Cash flow schedule (base)
 st.markdown("### Cash Flows (Base Case)")
 if use_equity_basis:
-    base_equity_value = exit_market_cap_mid - net_debt_current
-    exit_proceeds = max(0.0, base_equity_value) * stake_pct
+    base_equity_value = max(0.0, exit_market_cap_mid - net_debt_current)
+    exit_proceeds = base_equity_value * stake_pct
 else:
     exit_proceeds = exit_market_cap_mid * stake_pct
 
@@ -169,6 +174,10 @@ with k2:
     st.metric("MOIC (Base)", f"{moic:.2f}x")
 with k3:
     st.metric("IRR (Base, XIRR)", f"{irr_base*100:.1f}%")
+    st.caption(
+        "Displayed IRR conservatively assumes a ~4‑year hold to align with the IM; "
+        "Bay Street anticipates an actual hold period of **9–18 months** subject to market conditions."
+    )
 
 # Sensitivities
 st.markdown("### Sensitivities")
@@ -192,24 +201,24 @@ with s2:
     st.write(f"**IRR (hold adj.):** {irr_hold*100:.1f}%")
 
 # ---------- Scenario Analysis ----------
-st.markdown("## Scenario Analysis (IRR Paths & Probability-Weighted IRR — assumes **full exit**, no phased sell-down)")
-st.caption("Edit exit year, market cap (in € billions), and probability. IRR is computed per scenario; a probability-weighted IRR is shown below. Include delayed exits and a conservative €6.0B case.")
+st.markdown("## Scenario Analysis (IRR Paths & Probability‑Weighted IRR — assumes full exit, no phased sell‑down)")
+st.caption("Edit exit year, market cap (in € billions), and probability. Includes delayed exits and a conservative €6.0B case.")
 
 default_scenarios = pd.DataFrame({
     "Scenario": [
+        "Base (2029)",
+        "Bull (2029)",
+        "Bear (2029, €6.0B)",
+        "Base (2028)",
+        "Bull (2028)",
+        "Bear (2028, €6.0B)",
         "Base (2027)",
         "Bull (2027)",
-        "Bear (2027, €6.0B)",
-        "Delayed 1 yr (2028, Base)",
-        "Delayed 1 yr (2028, Bull)",
-        "Delayed 1 yr (2028, €6.0B)",
-        "Delayed 2 yrs (2029, Base)",
-        "Delayed 2 yrs (2029, Bull)",
-        "Delayed 2 yrs (2029, €6.0B)"
+        "Bear (2027, €6.0B)"
     ],
-    "Exit_Year": [2027, 2027, 2027, 2028, 2028, 2028, 2029, 2029, 2029],
+    "Exit_Year": [2029, 2029, 2029, 2028, 2028, 2028, 2027, 2027, 2027],
     "Exit_Market_Cap_Bn": [7.25, 8.50, 6.00, 7.25, 8.50, 6.00, 7.25, 8.50, 6.00],
-    "Probability": [0.45, 0.10, 0.10, 0.10, 0.05, 0.08, 0.05, 0.03, 0.04],
+    "Probability": [0.35, 0.10, 0.10, 0.15, 0.06, 0.06, 0.12, 0.03, 0.03],
 })
 
 scen_edit = st.data_editor(
@@ -225,7 +234,6 @@ for _, row in scen_edit.iterrows():
     try:
         scen_year = int(row["Exit_Year"])
         scen_cap_eur = float(row["Exit_Market_Cap_Bn"]) * 1_000_000_000
-        scen_prob = max(0.0, float(row["Probability"]))
     except Exception:
         irr_list.append(np.nan)
         continue
@@ -246,7 +254,7 @@ for _, row in scen_edit.iterrows():
 
 scen_edit["IRR_%"] = [None if np.isnan(x) else round(x*100, 1) for x in irr_list]
 
-# Probability-weighted IRR (normalize probs if they don't sum to 1)
+# Probability-weighted IRR (normalize if not summing to 1)
 prob_sum = scen_edit["Probability"].sum() if "Probability" in scen_edit else 0.0
 weighted_irr = np.nan
 if prob_sum > 0 and len(irr_list) == len(scen_edit):
@@ -260,9 +268,9 @@ if prob_sum > 0 and len(irr_list) == len(scen_edit):
 st.dataframe(scen_edit, use_container_width=True)
 st.markdown("---")
 if not np.isnan(weighted_irr):
-    st.subheader(f"Probability-Weighted IRR: {weighted_irr*100:.1f}%")
+    st.subheader(f"Probability‑Weighted IRR: {weighted_irr*100:.1f}%")
 else:
-    st.subheader("Probability-Weighted IRR: N/A")
+    st.subheader("Probability‑Weighted IRR: N/A")
 
 # ---------- Exports ----------
 st.markdown("### Export")
@@ -282,4 +290,7 @@ with cxb: st.download_button("Download EBITDA CSV", data=export["ebitda"], file_
 with cxc: st.download_button("Download Cash Flows CSV", data=export["cashflows"], file_name="ennismore_cash_flows.csv")
 with cxd: st.download_button("Download Scenarios CSV", data=export["scenarios"], file_name="ennismore_scenarios.csv")
 
-st.caption("Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. Exit results here assume a **full exit** (no phased sell-down). Use the equity-basis toggle to align with IM-style IRR.")
+st.caption(
+    "Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. "
+    "Exit results assume a full exit (no phased sell‑down). Use the equity‑basis toggle to align with IM‑style IRR."
+)
