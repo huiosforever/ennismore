@@ -271,7 +271,7 @@ inputs_df = pd.DataFrame({
 })
 export = {
     "inputs": inputs_df.to_csv(index=False).encode("utf-8"),
-    "ebitda": eb itda_edit.to_csv(index=False).encode("utf-8"),
+    "ebitda": ebitda_edit.to_csv(index=False).encode("utf-8"),
     "cashflows": cf_df.to_csv(index=False).encode("utf-8"),
     "scenarios_inputs": scen_edit.to_csv(index=False).encode("utf-8"),
     "scenarios_results": scen_results.to_csv(index=False).encode("utf-8"),
