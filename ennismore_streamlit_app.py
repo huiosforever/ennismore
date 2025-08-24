@@ -40,7 +40,7 @@ def fmt_money(x, curr="€"):
     except Exception:
         return ""
 
-# ---------- Defaults ----------
+# ---------- Default Inputs ----------
 DEFAULTS = {
     "stake_pct": 0.138,                    # 13.8%
     "purchase_price": 405_000_000,         # €405m
@@ -49,11 +49,11 @@ DEFAULTS = {
     "exit_market_cap_mid": 7_250_000_000,
     "dividends": 0,
     "fwd_multiple": 18.0,                  # forward EV/EBITDA multiple
-    "fwd_ebitda_2024": 350_000_000,        # 2024E EBITDA (for 18x)
     "current_multiple": 15.0,              # current EV/EBITDA multiple
-    "current_ebitda": 350_000_000,         # editable; defaults to 2024E for convenience
+    "fwd_ebitda_2024": 350_000_000,        # 2024E EBITDA (for 18x)
+    "current_ebitda": 350_000_000,         # can edit if desired
     "net_debt_current": 700_000_000,       # EV → Equity bridge
-    "current_ev_reference": 6_300_000_000, # for discount display context
+    "current_ev_reference": 6_300_000_000, # for discount context
 }
 
 EBITDA_TABLE = pd.DataFrame({
@@ -94,11 +94,11 @@ st.caption(
     "Use the equity vs. market cap toggle to align with IM‑style IRR."
 )
 
-# Top KPIs
+# Top KPIs & entry discount
 current_ev_ref = DEFAULTS["current_ev_reference"]
-implied_ev_stake_value = stake_pct * current_ev_ref
+implied_ev_stake_value   = stake_pct * current_ev_ref
 implied_equity_value_ref = max(0.0, current_ev_ref - net_debt_current) * stake_pct
-disc_vs_ev = (1 - (purchase_price / implied_ev_stake_value)) if implied_ev_stake_value > 0 else np.nan
+disc_vs_ev     = (1 - (purchase_price / implied_ev_stake_value)) if implied_ev_stake_value > 0 else np.nan
 disc_vs_equity = (1 - (purchase_price / implied_equity_value_ref)) if implied_equity_value_ref > 0 else np.nan
 
 c1, c2, c3 = st.columns(3)
@@ -127,24 +127,16 @@ implied_price_current = equity_current * stake_pct
 disc_current_vs_ticket = (1 - purchase_price / implied_price_current) if implied_price_current > 0 else np.nan
 
 vc1, vc2, vc3, vc4 = st.columns(4)
-with vc1:
-    st.metric("EV (18× × 2024E EBITDA)", fmt_money(ev_forward))
-with vc2:
-    st.metric("Equity (18× less Net Debt)", fmt_money(equity_forward))
-with vc3:
-    st.metric("Implied Price for 13.8% (18×)", fmt_money(implied_price_forward))
-with vc4:
-    st.metric("Discount vs 18× Equity Price", f"{disc_forward_vs_ticket*100:.1f}%" if not np.isnan(disc_forward_vs_ticket) else "N/A")
+with vc1: st.metric("EV (18× × 2024E EBITDA)", fmt_money(ev_forward))
+with vc2: st.metric("Equity (18× less Net Debt)", fmt_money(equity_forward))
+with vc3: st.metric("Implied Price for 13.8% (18×)", fmt_money(implied_price_forward))
+with vc4: st.metric("Discount vs 18× Equity Price", f"{disc_forward_vs_ticket*100:.1f}%" if not np.isnan(disc_forward_vs_ticket) else "N/A")
 
 vc5, vc6, vc7, vc8 = st.columns(4)
-with vc5:
-    st.metric("EV (15× × Current EBITDA)", fmt_money(ev_current))
-with vc6:
-    st.metric("Equity (15× less Net Debt)", fmt_money(equity_current))
-with vc7:
-    st.metric("Implied Price for 13.8% (15×)", fmt_money(implied_price_current))
-with vc8:
-    st.metric("Discount vs 15× Equity Price", f"{disc_current_vs_ticket*100:.1f}%" if not np.isnan(disc_current_vs_ticket) else "N/A")
+with vc5: st.metric("EV (15× × Current EBITDA)", fmt_money(ev_current))
+with vc6: st.metric("Equity (15× less Net Debt)", fmt_money(equity_current))
+with vc7: st.metric("Implied Price for 13.8% (15×)", fmt_money(implied_price_current))
+with vc8: st.metric("Discount vs 15× Equity Price", f"{disc_current_vs_ticket*100:.1f}%" if not np.isnan(disc_current_vs_ticket) else "N/A")
 
 # Exit proceeds basis toggle
 st.markdown("**Exit Proceeds Basis**")
@@ -203,7 +195,7 @@ with s2:
     st.write(f"**Adj. Exit Date:** {adj_exit_date}")
     st.write(f"**IRR (hold adj.):** {irr_hold*100:.1f}%")
 
-# ---------- Scenario Analysis ----------
+# ---------- Scenario Analysis — TABLE B (Prefilled) ----------
 st.markdown("## Scenario Analysis — Table B")
 st.caption("Pre-filled scenarios with IRR values from the IM; probabilities editable if desired.")
 
@@ -225,22 +217,21 @@ table_b_edit = st.data_editor(
     use_container_width=True,
     key="scenario_table_b"
 )
-
 st.dataframe(table_b_edit, use_container_width=True)
 
-# Probability-weighted IRR
+# Probability-weighted IRR (Table B)
 prob_sum_b = table_b_edit["Probability"].sum()
 weighted_irr_b = np.nan
 if prob_sum_b > 0:
-    weighted_irr_b = sum((p/prob_sum_b) * irr for p, irr in zip(table_b_edit["Probability"], table_b_edit["IRR_%"]))
-st.subheader(f"Probability-Weighted IRR (Table B): {weighted_irr_b:.1f}%")
+    weighted_irr_b = sum((p / prob_sum_b) * irr for p, irr in zip(table_b_edit["Probability"], table_b_edit["IRR_%"]))
+st.subheader(f"Probability‑Weighted IRR (Table B): {weighted_irr_b:.1f}%")
 
-# ----- Scenario Results (labeled) -----
-st.markdown("## Scenario Results (Table C — Computed)")
-st.caption("Computed IRRs by scenario using your inputs above; also used for the probability‑weighted IRR shown below.")
+# ---------- Scenario Results — TABLE C (Computed from inputs) ----------
+st.markdown("## Scenario Results — Table C (Computed)")
+st.caption("Computed IRRs using the edited inputs above (ignores the preset IRR_% column in Table B).")
 
 irr_vals = []
-for _, row in scen_edit.iterrows():
+for _, row in table_b_edit.iterrows():
     try:
         scen_year = int(row["Exit_Year"])
         scen_cap_eur = float(row["Exit_Market_Cap_Bn"]) * 1_000_000_000
@@ -255,19 +246,19 @@ for _, row in scen_edit.iterrows():
     except Exception:
         irr_vals.append(np.nan)
 
-scen_results = scen_edit.copy()
-scen_results["IRR_%"] = [None if np.isnan(x) else round(x*100, 1) for x in irr_vals]
+scen_results = table_b_edit.copy()
+scen_results["IRR_% (Computed)"] = [None if np.isnan(x) else round(x*100, 1) for x in irr_vals]
 st.dataframe(scen_results, use_container_width=True)
 
-# Probability-weighted IRR
-prob_sum = scen_edit["Probability"].sum() if "Probability" in scen_edit else 0.0
-weighted_irr = np.nan
-if prob_sum > 0 and len(irr_vals) == len(scen_edit):
-    weights = [p / prob_sum for p in scen_edit["Probability"]]
-    weighted_irr = sum(w * irr for w, irr in zip(weights, irr_vals) if not np.isnan(irr))
+# Probability-weighted IRR (Computed)
+prob_sum_c = scen_results["Probability"].sum()
+weighted_irr_c = np.nan
+if prob_sum_c > 0 and len(irr_vals) == len(scen_results):
+    weights = [p / prob_sum_c for p in scen_results["Probability"]]
+    weighted_irr_c = sum(w * irr for w, irr in zip(weights, irr_vals) if not np.isnan(irr))
 
 st.markdown("---")
-st.subheader(f"Probability‑Weighted IRR: {weighted_irr*100:.1f}%" if not np.isnan(weighted_irr) else "Probability‑Weighted IRR: N/A")
+st.subheader(f"Probability‑Weighted IRR (Computed from Table C): {weighted_irr_c*100:.1f}%" if not np.isnan(weighted_irr_c) else "Probability‑Weighted IRR (Computed from Table C): N/A")
 
 # ---------- Exports ----------
 st.markdown("### Export")
@@ -282,15 +273,15 @@ export = {
     "inputs": inputs_df.to_csv(index=False).encode("utf-8"),
     "ebitda": ebitda_edit.to_csv(index=False).encode("utf-8"),
     "cashflows": cf_df.to_csv(index=False).encode("utf-8"),
-    "scenarios_inputs": scen_edit.to_csv(index=False).encode("utf-8"),
-    "scenarios_results": scen_results.to_csv(index=False).encode("utf-8"),
+    "scenarios_table_b_inputs": table_b_edit.to_csv(index=False).encode("utf-8"),
+    "scenarios_table_c_computed": scen_results.to_csv(index=False).encode("utf-8"),
 }
 cxa, cxb, cxc, cxd, cxe = st.columns(5)
 with cxa: st.download_button("Download Inputs CSV", data=export["inputs"], file_name="ennismore_inputs.csv")
 with cxb: st.download_button("Download EBITDA CSV", data=export["ebitda"], file_name="ennismore_ebitda.csv")
 with cxc: st.download_button("Download Cash Flows CSV", data=export["cashflows"], file_name="ennismore_cash_flows.csv")
-with cxd: st.download_button("Download Scenario Inputs CSV", data=export["scenarios_inputs"], file_name="ennismore_scenarios_inputs.csv")
-with cxe: st.download_button("Download Scenario Results CSV", data=export["scenarios_results"], file_name="ennismore_scenarios_results.csv")
+with cxd: st.download_button("Download Table B (Inputs) CSV", data=export["scenarios_table_b_inputs"], file_name="ennismore_scenarios_table_b.csv")
+with cxe: st.download_button("Download Table C (Computed) CSV", data=export["scenarios_table_c_computed"], file_name="ennismore_scenarios_table_c.csv")
 
 st.caption(
     "Notes: EBITDA 2022–2024 from IM (p.10). 22% CAGR guidance 2024→2027. "
