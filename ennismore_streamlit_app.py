@@ -204,27 +204,36 @@ with s2:
     st.write(f"**IRR (hold adj.):** {irr_hold*100:.1f}%")
 
 # ---------- Scenario Analysis ----------
-st.markdown("---")
-st.markdown("## Scenario Inputs (Table B — Editable)")
-st.caption("Edit exit year, market cap (in € billions), and probability. Includes delayed exits and a conservative €6.0B case. Assumes full exit, no phased sell‑down.")
+st.markdown("## Scenario Analysis — Table B")
+st.caption("Pre-filled scenarios with IRR values from the IM; probabilities editable if desired.")
 
-default_scenarios = pd.DataFrame({
+table_b = pd.DataFrame({
     "Scenario": [
-        "Base (2029)", "Bull (2029)", "Bear (2029, €6.0B)",
-        "Base (2028)", "Bull (2028)", "Bear (2028, €6.0B)",
-        "Base (2027)", "Bull (2027)", "Bear (2027, €6.0B)"
+        "Base", "Bull", "Bear",
+        "Delayed 1yr (Base)", "Delayed 1yr (Bull)", "Delayed 1yr (Bear)",
+        "Delayed 2yrs (Base)", "Delayed 2yrs (Bull)", "Delayed 2yrs (Bear)"
     ],
-    "Exit_Year": [2029, 2029, 2029, 2028, 2028, 2028, 2027, 2027, 2027],
+    "Exit_Year": [2027, 2027, 2027, 2028, 2028, 2028, 2029, 2029, 2029],
     "Exit_Market_Cap_Bn": [7.25, 8.50, 6.00, 7.25, 8.50, 6.00, 7.25, 8.50, 6.00],
-    "Probability": [0.35, 0.10, 0.10, 0.15, 0.06, 0.06, 0.12, 0.03, 0.03],
+    "Probability": [0.45, 0.10, 0.10, 0.10, 0.05, 0.05, 0.05, 0.05, 0.05],
+    "IRR_%": [43.4, 53.5, 32.2, 28.7, 35.0, 21.6, 21.4, 26.0, 16.2],
 })
 
-scen_edit = st.data_editor(
-    default_scenarios,
+table_b_edit = st.data_editor(
+    table_b,
     num_rows="dynamic",
     use_container_width=True,
-    key="scenario_table"
+    key="scenario_table_b"
 )
+
+st.dataframe(table_b_edit, use_container_width=True)
+
+# Probability-weighted IRR
+prob_sum_b = table_b_edit["Probability"].sum()
+weighted_irr_b = np.nan
+if prob_sum_b > 0:
+    weighted_irr_b = sum((p/prob_sum_b) * irr for p, irr in zip(table_b_edit["Probability"], table_b_edit["IRR_%"]))
+st.subheader(f"Probability-Weighted IRR (Table B): {weighted_irr_b:.1f}%")
 
 # ----- Scenario Results (labeled) -----
 st.markdown("## Scenario Results (Table C — Computed)")
