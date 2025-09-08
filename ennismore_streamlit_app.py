@@ -42,7 +42,7 @@ def fmt_money(x, curr="€"):
 
 # ---------- Default Inputs ----------
 DEFAULTS = {
-    "stake_pct": 0.138,                    # 13.8%
+    "stake_pct": 0.138,                    # 13.6%
     "purchase_price": 405_000_000,         # €405m
     "entry_date": date(2025, 8, 31),
     "exit_date": date(2029, 12, 31),       # conservative ~4y to align with IM IRR
@@ -129,13 +129,13 @@ disc_current_vs_ticket = (1 - purchase_price / implied_price_current) if implied
 vc1, vc2, vc3, vc4 = st.columns(4)
 with vc1: st.metric("EV (18× × 2024E EBITDA)", fmt_money(ev_forward))
 with vc2: st.metric("Equity (18× less Net Debt)", fmt_money(equity_forward))
-with vc3: st.metric("Implied Price for 13.8% (18×)", fmt_money(implied_price_forward))
+with vc3: st.metric("Implied Price for 13.6% (18×)", fmt_money(implied_price_forward))
 with vc4: st.metric("Discount vs 18× Equity Price", f"{disc_forward_vs_ticket*100:.1f}%" if not np.isnan(disc_forward_vs_ticket) else "N/A")
 
 vc5, vc6, vc7, vc8 = st.columns(4)
 with vc5: st.metric("EV (15× × Current EBITDA)", fmt_money(ev_current))
 with vc6: st.metric("Equity (15× less Net Debt)", fmt_money(equity_current))
-with vc7: st.metric("Implied Price for 13.8% (15×)", fmt_money(implied_price_current))
+with vc7: st.metric("Implied Price for 13.6% (15×)", fmt_money(implied_price_current))
 with vc8: st.metric("Discount vs 15× Equity Price", f"{disc_current_vs_ticket*100:.1f}%" if not np.isnan(disc_current_vs_ticket) else "N/A")
 
 # Exit proceeds basis toggle
