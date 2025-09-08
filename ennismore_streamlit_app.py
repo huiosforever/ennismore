@@ -42,7 +42,7 @@ def fmt_money(x, curr="€"):
 
 # ---------- Default Inputs ----------
 DEFAULTS = {
-    "stake_pct": 0.138,                    # 13.6%
+    "stake_pct": 0.136,                    # 13.6%
     "purchase_price": 405_000_000,         # €405m
     "entry_date": date(2025, 8, 31),
     "exit_date": date(2029, 12, 31),       # conservative ~4y to align with IM IRR
